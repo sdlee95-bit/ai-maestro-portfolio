@@ -229,7 +229,97 @@ def parse(path):
     m = re.search(r"교육시행근거\s*[:：]\s*([^\n]+)", flat)
     d["근거"] = re.sub(r"\s+", " ", m.group(1)).strip() if m else None
 
+    # 이러닝 강좌 표 · 준비사항
+    if d["유형"] == "이러닝":
+        d["강좌"] = parse_courses(t, d.get("월"))
+        d["표경고"] = check_courses(d)
+        m = re.search(r"교육\s*신청\s*전\s*([^\n*]+)", flat)
+        d["준비사항"] = re.sub(r"\s+", " ", m.group(1)).strip() if m else None
+        m = re.search(r"(모든\s*과목\s*이수\s*후[^\n]+)", flat.replace(" ", " "))
+        d["이수확인"] = re.sub(r"\s+", "", m.group(1)).strip() if m else None
+        m = re.search(r"(동일\s*연도[^\n]*?중복[^\n]*)", flat)
+        d["중복이수"] = re.sub(r"\s+", " ", m.group(1)).strip() if m else None
+        d["수강흐름"] = parse_flow(t)
+
     return d
+
+
+# ------------------------------------------------------------------ 이러닝 강좌 표
+def parse_courses(t, month=None):
+    """이러닝 계획안의 강좌 표를 읽는다. 표는 PDF 에서 한 줄씩 풀려 나온다.
+
+        구분 / 적극행정교육 / 갈등관리교육 / 강좌명 / [5월 직장교육] /
+        국민의 생활을 / 바꾸는 적극행정 / [5월 직장교육] / 조직갈등 SOS! / ...
+        / 인정시간 / 50분 / 1시간 10분 / 이수기준 / 진도율 100% / 이수사이트 / ...
+
+    '구분'과 '인정시간'은 한 줄에 하나씩이라 그대로 읽고, 강좌명만 여러 줄로
+    쪼개져 있어 '[N월 직장교육]' 표시를 기준으로 나눈다. (9건 확인, 모두 2강좌)"""
+    m = re.search(r"\n\s*구분\s*\n(.*?)\n\s*강좌명\s*\n(.*?)\n\s*인정시간\s*\n(.*?)"
+                  r"\n\s*이수기준\s*\n(.*?)\n\s*이수사이트\s*\n([^\n]+)", t, re.S)
+    if not m:
+        return []
+    names = [s.strip() for s in m.group(1).split("\n") if s.strip()]
+    times = [s.strip() for s in m.group(3).split("\n") if s.strip()]
+    기준 = re.sub(r"\s+", " ", m.group(4)).strip()
+    사이트 = re.sub(r"\s+", " ", m.group(5)).strip()
+
+    tag = r"\[\s*%s월\s*직장교육\s*\]" % (month if month else r"\d+")
+    parts = re.split(tag, m.group(2))
+    titles = [re.sub(r"\s+", " ", p).strip() for p in parts[1:]]   # 첫 조각은 빈 앞머리
+
+    out = []
+    for i, name in enumerate(names):
+        out.append({
+            "구분": name,
+            "강좌명": titles[i] if i < len(titles) else None,
+            "태그": "[%s월 직장교육]" % month if month else None,
+            "인정시간": times[i] if i < len(times) else None,
+            "이수기준": 기준 or None,
+            "이수사이트": 사이트 or None,
+        })
+    return out
+
+
+def parse_flow(t):
+    """'학습방법' 도표의 단계. PDF 에서 화살표가 한 줄씩 풀려 나온다.
+
+        접속 / → / 수강신청 및 수강 / → / 교육이수 / → / 상시학습인정
+
+    구성원 입장에서 '내가 무엇을 해야 하나'에 답하는 부분이라 포스터에 싣는다."""
+    m = re.search(r"\n\s*접속\s*\n\s*→\s*\n(.*?)(?=\n\s*(?:부산대학교|개인별|\Z))",
+                  t, re.S)
+    if not m:
+        return []
+    steps = ["접속"] + [re.sub(r"\s+", " ", s).strip()
+                        for s in re.split(r"\n\s*→\s*\n", m.group(1))]
+    return [s for s in steps if s and len(s) <= 20]
+
+
+def check_courses(d):
+    """표의 '구분'이 교육내용과 어긋나면 알린다.
+
+    2026년 1월 계획안이 그렇다 — 교육내용은 '폭력예방교육, 반부패·청렴교육'인데
+    표의 구분은 '통일교육 / 갈등관리교육'(전달 계획안의 값)이다. 인정시간은
+    폭력예방·반부패 값이라 구분 행만 안 고친 것으로 보인다.
+    **임의로 고치지 않는다.** 담당자 확인에 맡기고 표시만 남긴다."""
+    내용 = d.get("교육내용") or ""
+    강좌 = d.get("강좌") or []
+    if not 내용 or not 강좌:
+        return None
+    # '·' 로 자르면 안 된다. '반부패·청렴교육' 처럼 과목 이름 안에도 쓰인다.
+    과목 = [s.strip() for s in re.split(r"\s*[,、]\s*", 내용) if s.strip()]
+    구분 = [c["구분"] for c in 강좌]
+    if len(과목) != len(구분):
+        return "교육내용 %d건과 표의 구분 %d건이 다릅니다" % (len(과목), len(구분))
+    def norm(s):
+        return re.sub(r"\s+", "", s)
+    어긋남 = [(a, b) for a, b in zip(과목, 구분)
+              if norm(a) not in norm(b) and norm(b) not in norm(a)]
+    if 어긋남:
+        return ("교육내용과 표의 구분이 다릅니다 — " +
+                " / ".join("교육내용 '%s' ↔ 표 '%s'" % ab for ab in 어긋남) +
+                " (담당자 확인 필요, 임의로 고치지 않음)")
+    return None
 
 
 def report(d):
@@ -258,6 +348,15 @@ def report(d):
             miss.append(k)
     if miss:
         print("   [비어 있음] %s  ← 지어내지 않고 비워 둔다" % ", ".join(miss))
+    for i, c in enumerate(d.get("강좌") or [], 1):
+        print("   강좌%d     %s · %s · %s" % (i, c["구분"], c["강좌명"], c["인정시간"]))
+    if d.get("강좌"):
+        c = d["강좌"][0]
+        print("   이수      %s · %s" % (c["이수기준"], c["이수사이트"]))
+    if d.get("준비사항"):
+        print("   준비      %s" % d["준비사항"])
+    if d.get("표경고"):
+        print("   ⚠ 원자료 확인 필요 : %s" % d["표경고"])
 
 
 def main(argv=None):

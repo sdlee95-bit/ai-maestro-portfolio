@@ -150,7 +150,27 @@ def build_content(plan):
     if not 참여 and plan.get("운영방법"):
         참여.append(("운영", plan["운영방법"]))
     c["참여"] = 참여
-    c["미지원"] = (유형 == "이러닝")
+    c["이러닝"] = (유형 == "이러닝")
+
+    # 이러닝은 실을 정보가 다르다 — 하루가 아니라 기간, 장소가 아니라 수강처,
+    # 참여율이 아니라 진도율, 그리고 강좌가 2개다. E안이 이 항목들을 쓴다.
+    if c["이러닝"]:
+        c["과목"] = [s.strip() for s in re.split(r"\s*[,、]\s*", 주제) if s.strip()]
+        c["강좌"] = plan.get("강좌") or []
+        c["수강처"] = plan.get("수강처") or ""
+        c["수강처URL"] = plan.get("수강처URL") or ""
+        c["진도율"] = plan.get("진도율")
+        c["준비"] = plan.get("준비사항") or ""
+        c["흐름"] = plan.get("수강흐름") or []
+        c["이수확인"] = plan.get("이수확인") or ""
+        c["중복이수"] = plan.get("중복이수") or ""
+        c["표경고"] = plan.get("표경고")
+        # '2026. 5. 12.(화) ~ 2026. 5. 31.(일)' 처럼 연도가 두 번 나오지 않게.
+        끝 = c["종료"]
+        if 끝 and c["연"] and 끝.startswith("%d." % c["연"]):
+            끝 = 끝[len("%d." % c["연"]):].strip()
+        c["기간"] = c["날짜"] + (" ~ " + 끝 if 끝 else "")
+
     notes = []
     # 인정시간을 숫자로만 읽으면 '1시간 40분 인정'(2026-03) 같은 표기를 놓친다.
     # 원문의 '…으로 N 인정' 을 그대로 쓴다.
@@ -179,6 +199,18 @@ def build_content(plan):
         if not s.endswith("참석"):
             s += " 참석"
         notes.append(s)
+    # 이러닝은 캠퍼스 특례·참석 예외가 없는 대신 수강 전 준비와 이수 확인이 있다.
+    if c["이러닝"]:
+        if c.get("준비"):
+            notes.append("수강 전 %s" % c["준비"])
+        if c.get("이수확인"):
+            # PDF 에서 공백이 다 사라져 붙어 나온다 → 읽을 수 있게 띄운다
+            s = c["이수확인"]
+            s = re.sub(r"모든과목이수후반드시화면상단의이수여부를확인",
+                       "모든 과목 이수 후 화면 상단에서 이수 여부 확인", s)
+            notes.append(s)
+        if c.get("중복이수"):
+            notes.append(c["중복이수"].rstrip("."))
     c["안내"] = notes
     return c
 
@@ -575,12 +607,194 @@ def _band(d, c, W, H, band_h, bg, dot, fg):
         d.text((cx + 20, cy), s, font=fn, fill=fg)
 
 
-STYLES = {"A": style_a, "B": style_b, "C": style_c, "D": style_d}
+def style_e(c, size=(1920, 1080), bg_photo=None):
+    """이러닝 전용 서식.
+
+    집합교육과 실을 정보가 다르다. 하루가 아니라 **기간**, 장소가 아니라
+    **수강처(URL)**, 참여율이 아니라 **진도율**, 그리고 **강좌가 2개**다.
+    D안(집합교육용)에 이러닝을 넣으면 강좌명과 인정시간이 통째로 빠진다.
+
+    그림은 쓰지 않는다. 실어야 할 정보가 많아 자리가 없고, 이 서식에서는
+    장식보다 '내가 무엇을 해야 하나'(수강 절차)가 쓸모 있다고 봤다.
+    그래서 세로형(메신저용)도 성립한다 — 잘릴 인물이 없다.
+
+    가로 : 왼쪽 머리글 · 오른쪽 절차 · 아래 강좌 카드 2장 나란히
+    세로 : 머리글 · 절차 · 강좌 카드 세로로 쌓기
+    """
+    W, H = size
+    portrait = H > W * 1.1
+    img = Image.new("RGB", (W, H), CREAM)
+    # 세로형에서 가로 기준으로 크기를 재면 글자가 절반으로 줄어 안 읽힌다.
+    S = lambda v: max(10, int(v * W / (1200.0 if portrait else 1920.0)))
+
+    d = ImageDraw.Draw(img, "RGBA")
+    M = int(W * (0.072 if portrait else 0.058))
+    tx = M + S(42)
+    강좌 = c.get("강좌") or []
+    흐름 = c.get("흐름") or []
+    과목 = c.get("과목") or ([c["주제"]] if c["주제"] else [])
+
+    band_h = int(H * (0.135 if portrait else 0.155))
+    cgap = S(20) if portrait else S(26)
+    card_h = S(170) if not portrait else S(150)
+    if 강좌:
+        cards_h = (len(강좌) * card_h + (len(강좌) - 1) * cgap) if portrait else card_h
+    else:
+        cards_h = 0
+    gap = S(34)
+    head_h = H - band_h - (cards_h + gap if 강좌 else 0)
+
+    colw = int(W - M * 2 - S(42)) if portrait else int(W * 0.44)
+
+    # ---- 머리글
+    f_lab = font(S(30), "Medium")
+    f_sub = font(S(34), "Medium")
+    f_key = font(S(25), "Medium")
+    f_val = font(S(30), "Bold")
+    f_main = [fit_font(d, s, colw, S(78), "Black", S(34)) for s in 과목]
+
+    rows = []
+    if c.get("기간"):
+        rows.append(("수강기간", c["기간"]))
+    if c.get("수강처"):
+        쳐 = c["수강처"].replace(c.get("수강처URL", "") or "\x00", "").strip()
+        rows.append(("수강처", 쳐 or c["수강처"]))
+    # 주소는 이러닝 포스터에서 가장 실용적인 정보다. 빼면 안 된다.
+    if c.get("수강처URL"):
+        rows.append(("주소", c["수강처URL"]))
+    if c.get("진도율"):
+        rows.append(("이수기준", "진도율 %d%%" % c["진도율"]))
+
+    h_lab = int(f_lab.size * 1.6)
+    h_main = sum(int(f.size * 1.22) for f in f_main) + S(10)
+    h_sub = int(f_sub.size * 1.9)
+    h_rows = len(rows) * S(56)
+    head_total = h_lab + h_main + h_sub + h_rows
+
+    step_h = S(74)
+    flow_h = (S(52) + len(흐름) * step_h) if 흐름 else 0
+    flow_gap = S(46)
+
+    if portrait:
+        # 세로형은 머리글과 절차가 한 칸에 들어간다. 합이 칸보다 크면 절차가
+        # 강좌 카드 위로 올라타므로, 넘치는 만큼 간격부터 줄인다.
+        pad = S(26)
+        total = head_total + (flow_gap + flow_h if 흐름 else 0)
+        while 흐름 and total > head_h - pad * 2 and step_h > S(50):
+            if flow_gap > S(24):
+                flow_gap -= S(4)
+            else:
+                step_h -= S(4)
+            flow_h = S(52) + len(흐름) * step_h
+            total = head_total + flow_gap + flow_h
+        y = max(pad, int((head_h - total) / 2))
+    else:
+        y = max(S(40), int((head_h - head_total) / 2))
+
+    d.rounded_rectangle([M, y + S(8), M + S(10), y + head_total - S(16)],
+                        radius=S(5), fill=SKY)
+    d.text((tx, y), "부산대학교 · %d년 %d월 직장교육" % (c["연"], c["월"]),
+           font=f_lab, fill=(96, 122, 158))
+    y += h_lab
+    yy = y
+    for s, f in zip(과목, f_main):
+        d.text((tx, yy), s, font=f, fill=(26, 38, 58))
+        yy += int(f.size * 1.22)
+    y += h_main
+    온라인 = "나라배움터 온라인 수강"
+    if len(과목) > 1:
+        온라인 += " · %d과정" % len(과목)
+    d.text((tx, y), 온라인, font=f_sub, fill=NAVY)
+    y += h_sub
+    for k, v in rows:
+        d.rounded_rectangle([tx, y + S(7), tx + S(6), y + S(38)], radius=S(3), fill=SKY)
+        d.text((tx + S(20), y + S(3)), k, font=f_key, fill=(120, 142, 172))
+        fv = fit_font(d, v, colw - S(130), f_val.size, "Bold", S(20))
+        d.text((tx + S(20) + S(104), y), v, font=fv, fill=(38, 52, 74))
+        y += S(56)
+
+    # ---- 수강 절차 (가로형은 오른쪽, 세로형은 머리글 아래)
+    if 흐름:
+        if portrait:
+            px0, fy = tx, y + flow_gap
+        else:
+            px0 = int(W * 0.565)
+            fy = max(S(40), int((head_h - flow_h) / 2))
+        f_ft = font(S(28), "Bold")
+        f_fs = font(S(31), "Medium")
+        f_fn = font(S(23), "Black")
+        d.text((px0, fy), "수강 절차", font=f_ft, fill=(120, 142, 172))
+        fy += S(52)
+        for i, s in enumerate(흐름):
+            cyy = fy + i * step_h
+            if i < len(흐름) - 1:          # 단계를 잇는 세로선
+                d.line([(px0 + S(19), cyy + S(40)), (px0 + S(19), cyy + step_h)],
+                       fill=(206, 216, 230), width=max(2, S(3)))
+            d.ellipse([px0, cyy + S(4), px0 + S(38), cyy + S(42)], fill=NAVY)
+            nw = measure(d, str(i + 1), f_fn)[0]
+            d.text((px0 + S(19) - nw // 2, cyy + S(11)), str(i + 1), font=f_fn,
+                   fill=(255, 255, 255))
+            d.text((px0 + S(56), cyy + S(6)), s, font=f_fs, fill=(44, 58, 80))
+
+    # ---- 강좌 카드
+    if 강좌:
+        n = len(강좌)
+        if portrait:
+            cw = W - M * 2
+        else:
+            cw = (W - M * 2 - cgap * (n - 1)) // n
+        f_no = font(S(26), "Black")
+        f_cat = font(S(29), "Bold")
+        f_tag = font(S(21), "Regular")
+        f_tit = font(S(31), "Medium")
+        f_tm = font(S(26), "Bold")
+        base_y = H - band_h - gap - cards_h
+        for i, co in enumerate(강좌):
+            if portrait:
+                x, cy = M, base_y + i * (card_h + cgap)
+            else:
+                x, cy = M + i * (cw + cgap), base_y
+            rrect(d, [x, cy, x + cw, cy + card_h], S(14), fill=(255, 255, 255, 232),
+                  outline=(214, 222, 234), width=2)
+            rrect(d, [x, cy, x + S(7), cy + card_h], S(4), fill=SKY)
+            px = x + S(26)
+            d.ellipse([px, cy + S(24), px + S(34), cy + S(58)], fill=NAVY)
+            nw = measure(d, str(i + 1), f_no)[0]
+            d.text((px + S(17) - nw // 2, cy + S(28)), str(i + 1), font=f_no,
+                   fill=(255, 255, 255))
+            d.text((px + S(48), cy + S(26)), co.get("구분") or "", font=f_cat, fill=NAVY)
+            tm = co.get("인정시간")
+            if tm:
+                bw = measure(d, tm, f_tm)[0] + S(34)
+                bx = x + cw - S(26) - bw
+                rrect(d, [bx, cy + S(22), bx + bw, cy + S(62)], S(20), fill=(255, 240, 224))
+                d.text((bx + S(17), cy + S(28)), tm, font=f_tm, fill=WARM)
+            if co.get("태그"):
+                d.text((px, cy + S(76)), "나라배움터 검색 %s" % co["태그"], font=f_tag,
+                       fill=(140, 154, 176))
+            tit = co.get("강좌명") or ""
+            if tit:
+                # 두 줄을 넘으면 잘라내지 않고 글자를 줄인다.
+                # 강좌명이 말없이 잘리면 나라배움터에서 못 찾는다.
+                ft, lines = f_tit, wrap(d, tit, f_tit, cw - S(52))
+                while len(lines) > 2 and ft.size > S(20):
+                    ft = font(ft.size - 2, "Medium")
+                    lines = wrap(d, tit, ft, cw - S(52))
+                for li, ln in enumerate(lines[:2]):
+                    d.text((px, cy + S(106) + li * int(ft.size * 1.16)), ln, font=ft,
+                           fill=(34, 46, 66))
+
+    _band(d, c, W, H, band_h, bg=(28, 44, 74, 246), dot=SKY, fg=(226, 236, 248))
+    return img
+
+
+STYLES = {"A": style_a, "B": style_b, "C": style_c, "D": style_d, "E": style_e}
 STYLE_NAME = {
     "A": "차분한 공문 정제형",
     "B": "사진 배경 + 오버레이",
     "C": "강한 타이포 + 색면 분할",
     "D": "일러스트 + 코드 조판",
+    "E": "이러닝 전용 (강좌 카드)",
 }
 
 
