@@ -11,8 +11,9 @@
 | 01 | [업무보고 PPT 자동화](01-work-report-ppt/) | 부산대 「2026 업무보고 서식」을 코드로 재현한 PPT 빌더 + 총무과 주요업무보고 20매 | [스킬](01-work-report-ppt/skill/) · [미리보기](01-work-report-ppt/#슬라이드-미리보기) · [PPTX](01-work-report-ppt/output/) |
 | 02 | [인사현황 엑셀 대시보드 자동화](02-hr-dashboard-excel/) | 현원 명부를 받아 **데이터를 바꾸면 피벗·차트가 자동 갱신**되는 대시보드. 시트 10장 · 피벗 19 · 차트 11 · 슬라이서 6 | [미리보기](02-hr-dashboard-excel/#미리보기) · [XLSX](02-hr-dashboard-excel/output/) |
 | 03 | [직장교육 안내 포스터 에이전트](03-training-poster-agent/) | 직장교육 계획(안) PDF를 넣으면 안내 포스터가 나오는 에이전트. **글자는 전부 계획안에서 뽑아 코드가 조판** — 생성 AI는 일러스트만 | [미리보기](03-training-poster-agent/#결과물) · [코드](03-training-poster-agent/code/) · [시행착오 기록](03-training-poster-agent/trial-and-error.md) |
+| 04 | [조사원·편집장 서브에이전트](04-research-agents/) | 주제를 주면 **조사원 5명이 동시에** 자료를 모으고, 편집장이 보고서 목차·스토리라인 초안을 짠다. 확정은 사용자와 대화로 — 근거를 5등급으로 표시 | [에이전트](04-research-agents/agents/) · [명령](04-research-agents/command/) · [첨부 추출 도구](04-research-agents/tools/) |
 
-> 이후 과제는 `04-`, `05-` … 폴더로 추가됩니다.
+> 이후 과제는 `05-`, `06-` … 폴더로 추가됩니다.
 
 ## 개인정보 안내
 
