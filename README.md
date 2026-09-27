@@ -12,6 +12,7 @@
 | 02 | [인사현황 엑셀 대시보드 자동화](02-hr-dashboard-excel/) | 현원 명부를 받아 **데이터를 바꾸면 피벗·차트가 자동 갱신**되는 대시보드. 시트 10장 · 피벗 19 · 차트 11 · 슬라이서 6 | [미리보기](02-hr-dashboard-excel/#미리보기) · [XLSX](02-hr-dashboard-excel/output/) |
 | 03 | [직장교육 안내 포스터 에이전트](03-training-poster-agent/) | 직장교육 계획(안) PDF를 넣으면 안내 포스터가 나오는 에이전트. **글자는 전부 계획안에서 뽑아 코드가 조판** — 생성 AI는 일러스트만 | [미리보기](03-training-poster-agent/#결과물) · [코드](03-training-poster-agent/code/) · [시행착오 기록](03-training-poster-agent/trial-and-error.md) |
 | 04 | [조사원·편집장 서브에이전트](04-research-agents/) | 주제를 주면 **조사원 5명이 동시에** 자료를 모으고, 편집장이 보고서 목차·스토리라인 초안을 짠다. 확정은 사용자와 대화로 — 근거를 5등급으로 표시 | [에이전트](04-research-agents/agents/) · [명령](04-research-agents/command/) · [첨부 추출 도구](04-research-agents/tools/) |
+| 05 | [공시자료 분석 에이전트](05-disclosure-agent/) | 대학알리미 공시지표를 뽑아 **감사역이 원본에서 다시 뽑아 대조**한 뒤 부서장용 1장 요약으로. 감사↔개고 3회 왕복 · 캔버스로 그려져 화면 긁기가 안 되는 표를 뚫는다 | [에이전트](05-disclosure-agent/agents/) · [명령](05-disclosure-agent/command/) · [수집 도구](05-disclosure-agent/tools/) · [공시항목 사전](05-disclosure-agent/reference/) |
 
 > 이후 과제는 `05-`, `06-` … 폴더로 추가됩니다.
 
