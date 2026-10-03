@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<style>
+  :root{ --navy:#1C4FA1; --sky:#2DA7E0; --ink:#12213F; --line:#D8DEE9;
+         --bg:#F5F7FA; --warn:#C0392B; --ok:#1E8449; }
+  *{ box-sizing:border-box; }
+  body{ margin:0; padding:24px 16px 64px; background:var(--bg); color:var(--ink);
+        font-family:"Malgun Gothic","맑은 고딕",system-ui,sans-serif; font-size:15px; line-height:1.6; }
+  .wrap{ max-width:1000px; margin:0 auto; }
+  header{ border-bottom:3px solid var(--navy); padding-bottom:12px; margin-bottom:20px; }
+  h1{ margin:0 0 4px; font-size:22px; color:var(--navy); }
+  .sub{ color:#5A6B82; font-size:14px; }
+  .kpi{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+        gap:12px; margin-bottom:20px; }
+  .box{ background:#fff; border:1px solid var(--line); border-radius:8px;
+        padding:16px 18px; text-align:center; }
+  .box .n{ font-size:30px; font-weight:800; color:var(--navy); line-height:1.2; }
+  .box .l{ font-size:13px; color:#5A6B82; }
+  .box.warn .n{ color:var(--warn); }
+  .box.ok .n{ color:var(--ok); }
+  .card{ background:#fff; border:1px solid var(--line); border-radius:8px;
+         padding:18px 20px; margin-bottom:18px; }
+  .card h2{ margin:0 0 14px; font-size:16px; color:var(--navy);
+            border-left:4px solid var(--sky); padding-left:10px; }
+  table{ width:100%; border-collapse:collapse; font-size:14px; }
+  th,td{ border-bottom:1px solid var(--line); padding:8px 10px; text-align:left; }
+  th{ background:#EEF2F7; font-size:13px; color:#5A6B82; font-weight:700; }
+  td.num{ text-align:right; font-variant-numeric:tabular-nums; }
+  .tag{ display:inline-block; padding:2px 10px; border-radius:11px; font-size:12px; font-weight:700; }
+  .t-ok{ background:#E9F7EF; color:var(--ok); border:1px solid #A9DFBF; }
+  .t-no{ background:#FDEDEC; color:var(--warn); border:1px solid #F5B7B1; }
+  .chips span{ display:inline-block; background:#FDEDEC; border:1px solid #F5B7B1;
+               color:#922B21; border-radius:5px; padding:4px 10px; margin:0 6px 6px 0; font-size:13px; }
+  .bar{ height:10px; background:#EEF2F7; border-radius:5px; overflow:hidden; margin:10px 0 4px; }
+  .bar > i{ display:block; height:100%; background:var(--sky); }
+  .btn{ background:#fff; color:var(--navy); border:1.5px solid var(--navy); border-radius:6px;
+        padding:8px 16px; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit; }
+  .muted{ color:#7A8AA0; font-size:13px; }
+  .copy{ width:100%; height:70px; padding:9px; border:1px solid var(--line);
+         border-radius:6px; font-family:inherit; font-size:13px; resize:vertical; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1 id="ttl">불러오는 중…</h1>
+    <div class="sub" id="sub"></div>
+  </header>
+  <div id="app" class="muted">잠시만 기다려 주십시오…</div>
+</div>
+
+<script>
+google.script.run.withSuccessHandler(draw).withFailureHandler(function(e){
+  document.getElementById('app').innerHTML =
+    '<div class="card"><b>불러오지 못했습니다.</b><br>' +
+    '<span class="muted">편집기에서 setup 함수를 한 번 실행하셨는지 확인해 주십시오. ' +
+    (e && e.message ? e.message : e) + '</span></div>';
+}).getStatus();
+
+function draw(st){
+  document.getElementById('ttl').textContent = st.title + ' — 취합 현황';
+  document.getElementById('sub').textContent = st.baseDate + ' · ' + st.updated + ' 기준';
+
+  var done = st.submitted.length, all = st.depts.length;
+  var pct = all ? Math.round(done / all * 100) : 0;
+
+  var h = '';
+
+  h += '<div class="kpi">' +
+       box(done + ' / ' + all, '제출 부서', 'ok') +
+       box(st.pending.length, '미제출 부서', st.pending.length ? 'warn' : 'ok') +
+       box(st.total.toLocaleString(), '누적 인원(건)', '') +
+       box(pct + '%', '진행률', '') +
+       '</div>';
+
+  h += '<div class="card"><h2>진행률</h2>' +
+       '<div class="bar"><i style="width:' + pct + '%"></i></div>' +
+       '<div class="muted">' + done + '개 부서 제출 · ' + st.pending.length + '개 부서 남음</div></div>';
+
+  h += '<div class="card"><h2>미제출 부서 ' +
+       (st.pending.length ? '(' + st.pending.length + ')' : '') + '</h2>';
+  if (st.pending.length){
+    h += '<div class="chips">';
+    st.pending.forEach(function(d){ h += '<span>' + esc(d) + '</span>'; });
+    h += '</div>';
+    h += '<p class="muted">아래 문구를 복사해 독촉 메일에 쓰실 수 있습니다.</p>' +
+         '<textarea class="copy" id="memo" readonly>' + esc(memo(st)) + '</textarea>' +
+         '<p><button class="btn" onclick="copyMemo()">문구 복사</button></p>';
+  } else {
+    h += '<p><span class="tag t-ok">전 부서 제출 완료</span></p>';
+  }
+  h += '</div>';
+
+  h += '<div class="card"><h2>부서별 제출 현황</h2><table><thead><tr>' +
+       '<th>부서</th><th>상태</th><th style="text-align:right">인원(건)</th></tr></thead><tbody>';
+  st.depts.forEach(function(d){
+    var n = st.byDept[d] || 0;
+    h += '<tr><td>' + esc(d) + '</td><td>' +
+         (n ? '<span class="tag t-ok">제출</span>' : '<span class="tag t-no">미제출</span>') +
+         '</td><td class="num">' + (n ? n.toLocaleString() : '—') + '</td></tr>';
+  });
+  h += '</tbody></table>';
+
+  if (st.etc && st.etc.length){
+    h += '<p class="muted" style="margin-top:12px">※ 부서 목록에 없는 이름으로 들어온 제출: <b>' +
+         st.etc.map(esc).join(', ') + '</b> — 부서명 오타이거나 목록 보완이 필요합니다.</p>';
+  }
+  h += '</div>';
+
+  h += '<div class="card"><h2>원자료</h2>' +
+       '<p class="muted">입력된 내용은 구글 시트에 1명=1행으로 쌓입니다. ' +
+       '엑셀로 내려받아 그대로 제출 서식에 붙일 수 있습니다.</p>' +
+       '<p><a class="btn" href="' + esc(st.sheetUrl) + '" target="_blank">시트 열기</a> ' +
+       '<button class="btn" onclick="location.reload()">새로고침</button></p></div>';
+
+  document.getElementById('app').innerHTML = h;
+}
+
+function box(n, l, cls){
+  return '<div class="box ' + cls + '"><div class="n">' + esc(n) + '</div>' +
+         '<div class="l">' + esc(l) + '</div></div>';
+}
+
+function memo(st){
+  return st.title + '(' + st.baseDate + ') 제출 요청드립니다.\n\n' +
+         '현재 ' + st.submitted.length + ' / ' + st.depts.length + '개 부서가 제출하였습니다.\n' +
+         '미제출: ' + st.pending.join(', ') + '\n\n' +
+         '아래 주소에서 바로 입력하실 수 있습니다.\n' +
+         (st.appUrl || '(배포 후 주소가 표시됩니다)') + '\n\n' +
+         '(' + st.updated + ' 기준)';
+}
+
+function copyMemo(){
+  var t = document.getElementById('memo');
+  t.select(); t.setSelectionRange(0, 99999);
+  try { document.execCommand('copy'); alert('복사했습니다.'); }
+  catch(e){ alert('복사가 막혀 있습니다. 직접 선택해 복사해 주십시오.'); }
+}
+
+function esc(s){
+  return String(s).replace(/[&<>"']/g, function(c){
+    return ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c];
+  });
+}
+</script>
+</body>
+</html>

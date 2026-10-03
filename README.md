@@ -13,6 +13,7 @@
 | 03 | [직장교육 안내 포스터 에이전트](03-training-poster-agent/) | 직장교육 계획(안) PDF를 넣으면 안내 포스터가 나오는 에이전트. **글자는 전부 계획안에서 뽑아 코드가 조판** — 생성 AI는 일러스트만 | [미리보기](03-training-poster-agent/#결과물) · [코드](03-training-poster-agent/code/) · [시행착오 기록](03-training-poster-agent/trial-and-error.md) |
 | 04 | [조사원·편집장 서브에이전트](04-research-agents/) | 주제를 주면 **조사원 5명이 동시에** 자료를 모으고, 편집장이 보고서 목차·스토리라인 초안을 짠다. 확정은 사용자와 대화로 — 근거를 5등급으로 표시 | [에이전트](04-research-agents/agents/) · [명령](04-research-agents/command/) · [첨부 추출 도구](04-research-agents/tools/) |
 | 05 | [공시자료 분석 에이전트](05-disclosure-agent/) | 대학알리미 공시지표를 뽑아 **감사역이 원본에서 다시 뽑아 대조**한 뒤 부서장용 1장 요약으로. 감사↔개고 3회 왕복 · 캔버스로 그려져 화면 긁기가 안 되는 표를 뚫는다 | [에이전트](05-disclosure-agent/agents/) · [명령](05-disclosure-agent/command/) · [수집 도구](05-disclosure-agent/tools/) · [공시항목 사전](05-disclosure-agent/reference/) |
+| 06 | [부서 취합 GAS 웹앱](06-gas-survey-app/) | 부서에 엑셀 서식을 뿌리고 모으던 일을 **주소 하나**로. 입력이 시트에 쌓이고 담당자에게 알림이 가며, **누가 안 냈는지**가 현황판과 메일에 바로 뜬다 | [서버](06-gas-survey-app/gas/Code.gs) · [입력 화면](06-gas-survey-app/gas/Index.html) · [현황판](06-gas-survey-app/gas/Status.html) |
 
 > 이후 과제는 `05-`, `06-` … 폴더로 추가됩니다.
 

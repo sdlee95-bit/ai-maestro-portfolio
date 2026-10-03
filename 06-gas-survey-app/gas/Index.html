@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<style>
+  :root{ --navy:#1C4FA1; --sky:#2DA7E0; --ink:#12213F; --line:#D8DEE9;
+         --bg:#F5F7FA; --warn:#C0392B; --ok:#1E8449; }
+  *{ box-sizing:border-box; }
+  body{ margin:0; padding:24px 16px 64px; background:var(--bg); color:var(--ink);
+        font-family:"Malgun Gothic","맑은 고딕",system-ui,sans-serif; font-size:15px; line-height:1.6; }
+  .wrap{ max-width:1080px; margin:0 auto; }
+  header{ border-bottom:3px solid var(--navy); padding-bottom:12px; margin-bottom:20px; }
+  h1{ margin:0 0 4px; font-size:22px; color:var(--navy); }
+  .sub{ color:#5A6B82; font-size:14px; }
+  .card{ background:#fff; border:1px solid var(--line); border-radius:8px;
+         padding:18px 20px; margin-bottom:18px; }
+  .card h2{ margin:0 0 14px; font-size:16px; color:var(--navy);
+            border-left:4px solid var(--sky); padding-left:10px; }
+  .grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:12px 16px; }
+  label{ display:block; font-size:13px; font-weight:600; margin-bottom:4px; }
+  .req{ color:var(--warn); }
+  input,select{ width:100%; padding:7px 9px; border:1px solid var(--line);
+                border-radius:5px; font-size:14px; font-family:inherit; background:#fff; }
+  input:focus,select:focus{ outline:2px solid var(--sky); outline-offset:-1px; }
+  input[readonly]{ background:#EEF2F7; color:#5A6B82; font-weight:700; }
+  .hint{ font-size:12px; color:#7A8AA0; margin-top:3px; }
+  .unit{ font-size:12px; color:#7A8AA0; }
+  .person{ border:1px solid var(--line); border-radius:8px; padding:14px 16px;
+           margin-bottom:12px; background:#FCFDFF; position:relative; }
+  .person h3{ margin:0 0 12px; font-size:14px; color:var(--navy); }
+  .del{ position:absolute; top:12px; right:12px; background:#fff; color:var(--warn);
+        border:1px solid var(--warn); border-radius:5px; padding:3px 10px;
+        font-size:12px; cursor:pointer; }
+  button{ font-family:inherit; }
+  .btn{ background:var(--navy); color:#fff; border:0; border-radius:6px;
+        padding:11px 22px; font-size:15px; font-weight:700; cursor:pointer; }
+  .btn:disabled{ background:#9AA8BC; cursor:not-allowed; }
+  .btn-ghost{ background:#fff; color:var(--navy); border:1.5px solid var(--navy); }
+  .bar{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .pii{ background:#FFF8E1; border:1px solid #F0C36D; border-radius:6px;
+        padding:10px 14px; font-size:13px; margin-bottom:16px; }
+  .err{ background:#FDEDEC; border:1px solid var(--warn); border-radius:6px;
+        padding:12px 16px; margin-bottom:16px; color:#922B21; }
+  .err ul{ margin:6px 0 0; padding-left:20px; }
+  .done{ background:#E9F7EF; border:1px solid var(--ok); border-radius:8px;
+         padding:28px; text-align:center; }
+  .done h2{ color:var(--ok); border:0; padding:0; font-size:20px; }
+  .muted{ color:#7A8AA0; font-size:13px; }
+  @media(max-width:600px){ .grid{ grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1 id="ttl">불러오는 중…</h1>
+    <div class="sub" id="sub"></div>
+  </header>
+
+  <div id="app" class="muted">잠시만 기다려 주십시오…</div>
+</div>
+
+<script>
+var CFG = null;
+var seq = 0;
+
+google.script.run.withSuccessHandler(boot).withFailureHandler(fail).getFormConfig();
+
+function fail(e){
+  document.getElementById('app').innerHTML =
+    '<div class="err"><b>설정을 불러오지 못했습니다.</b><br>' +
+    '편집기에서 <code>setup</code> 함수를 한 번 실행하셨는지 확인해 주십시오.<br>' +
+    '<span class="muted">' + (e && e.message ? e.message : e) + '</span></div>';
+}
+
+function boot(cfg){
+  CFG = cfg;
+  document.getElementById('ttl').textContent = cfg.title;
+  document.getElementById('sub').textContent = cfg.baseDate + ' · 부서별 제출';
+  render();
+  addPerson();
+}
+
+function render(){
+  var h = '';
+
+  h += '<div class="pii">이 화면은 <b>성명·생년월일</b>을 입력받습니다. ' +
+       '수집한 정보는 실태조사 제출 목적으로만 쓰고, 조사 종료 후 파기합니다. ' +
+       '<b>실제 자료가 아닌 연습이라면 가상의 이름을 넣어 주십시오.</b></div>';
+
+  h += '<div id="errbox"></div>';
+
+  h += '<div class="card"><h2>담당자 정보 <span class="muted">— 한 번만 입력합니다</span></h2><div class="grid">';
+  CFG.submitter.forEach(function(f){ h += field('s', f, ''); });
+  h += '</div></div>';
+
+  h += '<div class="card"><h2>직원 현황</h2><div id="people"></div>' +
+       '<div class="bar"><button class="btn btn-ghost" onclick="addPerson()">+ 직원 추가</button>' +
+       '<span class="muted" id="cnt"></span></div></div>';
+
+  h += '<div class="bar"><button class="btn" id="go" onclick="submit()">제출</button>' +
+       '<span class="muted">제출하면 취합 담당자에게 알림이 갑니다.</span></div>';
+
+  document.getElementById('app').innerHTML = h;
+}
+
+function field(ns, f, idx){
+  var id = ns + '_' + idx + '_' + f.key;
+  var req = f.required ? ' <span class="req">*</span>' : '';
+  var unit = f.unit ? ' <span class="unit">(' + f.unit + ')</span>' : '';
+  var h = '<div><label for="' + esc(id) + '">' + esc(f.key) + req + unit + '</label>';
+
+  if (f.calc){
+    h += '<input id="' + esc(id) + '" readonly value="0">';
+  } else if (f.type === 'select'){
+    h += '<select id="' + esc(id) + '" data-k="' + esc(f.key) + '"' +
+         (f.key === '기간제/무기계약직' ? ' onchange="syncEnd(' + idx + ')"' : '') + '>';
+    h += '<option value="">— 선택 —</option>';
+    (f.options || []).forEach(function(o){ h += '<option>' + esc(o) + '</option>'; });
+    h += '</select>';
+  } else {
+    var t = f.type === 'number' ? 'number' : (f.type === 'date' ? 'date' : 'text');
+    h += '<input type="' + t + '" id="' + esc(id) + '" data-k="' + esc(f.key) + '"' +
+         (f.type === 'number' ? ' min="0" step="1" oninput="recalc(' + idx + ')"' : '') + '>';
+  }
+  if (f.hint) h += '<div class="hint">' + esc(f.hint) + '</div>';
+  return h + '</div>';
+}
+
+function addPerson(){
+  var i = seq++;
+  var d = document.createElement('div');
+  d.className = 'person'; d.id = 'p_' + i;
+  var h = '<h3>직원 <span class="n"></span></h3>' +
+          '<button class="del" onclick="delPerson(' + i + ')">삭제</button><div class="grid">';
+  CFG.fields.forEach(function(f){ h += field('p', f, i); });
+  d.innerHTML = h + '</div>';
+  document.getElementById('people').appendChild(d);
+  renum();
+}
+
+function delPerson(i){
+  var el = document.getElementById('p_' + i);
+  if (document.querySelectorAll('.person').length <= 1){
+    alert('최소 한 명은 있어야 합니다.'); return;
+  }
+  el.parentNode.removeChild(el); renum();
+}
+
+function renum(){
+  var ps = document.querySelectorAll('.person');
+  for (var i = 0; i < ps.length; i++) ps[i].querySelector('.n').textContent = (i + 1);
+  document.getElementById('cnt').textContent = '현재 ' + ps.length + '명';
+}
+
+/** 무기계약직이면 계약종료일을 잠근다 — 서식의 규칙 */
+function syncEnd(i){
+  var sel = document.getElementById('p_' + i + '_기간제/무기계약직');
+  var end = document.getElementById('p_' + i + '_계약종료일');
+  if (!sel || !end) return;
+  if (sel.value === '무기계약직'){ end.value = ''; end.disabled = true; }
+  else { end.disabled = false; }
+}
+
+/** 연봉액 = ((A+B)×12)+C+D+E+F — 사람이 계산하지 않는다 */
+function recalc(i){
+  var g = function(k){
+    var el = document.getElementById('p_' + i + '_' + k);
+    return el ? Number(el.value || 0) : 0;
+  };
+  var v = (g('(A) 월급여(세전)') + g('(B) 정액급식비')) * 12
+        + g('(C) 연간 성과상여금') + g('(D) 연간 복지포인트')
+        + g('(E) 연간 명절상여금') + g('(F) 연간 기타수당');
+  var out = document.getElementById('p_' + i + '_연봉액');
+  if (out) out.value = v.toLocaleString();
+}
+
+function collect(){
+  var submitter = {};
+  CFG.submitter.forEach(function(f){
+    submitter[f.key] = (document.getElementById('s__' + f.key) || {}).value || '';
+  });
+  var rows = [];
+  var ps = document.querySelectorAll('.person');
+  for (var n = 0; n < ps.length; n++){
+    var i = ps[n].id.split('_')[1];
+    var r = {};
+    CFG.fields.forEach(function(f){
+      if (f.calc) return;
+      var el = document.getElementById('p_' + i + '_' + f.key);
+      r[f.key] = el ? el.value : '';
+    });
+    rows.push(r);
+  }
+  return { submitter: submitter, rows: rows };
+}
+
+function submit(){
+  var btn = document.getElementById('go');
+  btn.disabled = true; btn.textContent = '제출 중…';
+  document.getElementById('errbox').innerHTML = '';
+  google.script.run
+    .withSuccessHandler(onDone)
+    .withFailureHandler(function(e){
+      showErr(['서버 오류: ' + (e && e.message ? e.message : e)]);
+      btn.disabled = false; btn.textContent = '제출';
+    })
+    .submitRecords(collect());
+}
+
+function onDone(res){
+  var btn = document.getElementById('go');
+  if (!res.ok){
+    showErr(res.errors);
+    btn.disabled = false; btn.textContent = '제출';
+    return;
+  }
+  document.getElementById('app').innerHTML =
+    '<div class="done"><h2>제출이 완료되었습니다</h2>' +
+    '<p>이번에 <b>' + res.count + '명</b>을 제출하셨습니다. 누적 ' + res.total + '건.</p>' +
+    '<p class="muted">취합 담당자에게 알림이 전송되었습니다. ' +
+    '수정이 필요하면 담당자에게 연락해 주십시오.</p>' +
+    '<p><button class="btn btn-ghost" onclick="location.reload()">추가로 더 제출하기</button></p></div>';
+  window.scrollTo(0, 0);
+}
+
+function showErr(list){
+  var h = '<div class="err"><b>확인이 필요합니다</b><ul>';
+  list.forEach(function(e){ h += '<li>' + esc(e) + '</li>'; });
+  document.getElementById('errbox').innerHTML = h + '</ul></div>';
+  window.scrollTo(0, 0);
+}
+
+function esc(s){
+  return String(s).replace(/[&<>"']/g, function(c){
+    return ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c];
+  });
+}
+</script>
+</body>
+</html>
