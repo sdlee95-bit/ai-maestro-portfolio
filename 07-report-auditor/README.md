@@ -154,9 +154,11 @@ $ audit.py stat 비교군.tsv --col 2026_합산 --label 학교 --filter '학교!
 
 ```
 07-report-auditor/
-├── agents/report-auditor.md    감사역 — 값·정의·주장·수신자 네 축
-├── command/audit.md            /audit — 원본 확인부터 검토의견까지
-└── tools/audit.py              claims · check · stat · defs-template
+├── agents/report-auditor.md     감사역 — 값·정의·주장·수신자 네 축
+├── command/audit.md             /audit — 원본 확인부터 검토의견까지
+├── tools/audit.py               claims · check · stat · defs-template
+├── tools/hwpx_builder.py        원본 서식을 그대로 쓰는 한글(.hwpx) 생성기
+└── reference/defs.example.json  지표 정의 파일 예시
 ```
 
 ```bash
@@ -166,6 +168,66 @@ python audit.py check  claims.json --source 원본.tsv 지침.hwpx --defs defs.j
 python audit.py stat   원본.tsv --col 총계 --label 학교 --filter '학교!=제외대상'
 python audit.py defs-template -o defs.json
 ```
+
+---
+
+---
+
+## 덤 — 보고서를 정해진 서식 그대로 뽑는다 (`hwpx_builder.py`)
+
+감사 결과를 **부서 서식에 맞춰** 보고서로 내야 했다. 처음엔 마크다운을 HTML로 바꿔
+한글로 여는 흔한 방법을 썼는데, **서식이 통째로 날아갔다.**
+
+| 원본 서식 | HTML 경로로 나온 것 |
+|---|---|
+| 본문 **15pt** | 10.5pt |
+| 제목이 **회색 상자** 안 | 맨 문단 |
+| 보고 취지가 **테두리 상자** 안 | 맨 문단 |
+| 계층 들여쓰기 (내어쓰기) | **전부 사라짐** |
+
+한글은 HTML의 `margin-left`를 **클래스로도 인라인으로도 무시하고**,
+문단 앞의 `&nbsp;`와 전각 공백(U+3000)까지 지운다. 세 가지를 차례로 시도하다
+**「골격은 따랐다」고 보고했고, 지적을 받았다.**
+
+그제야 **경로 자체가 틀렸다**는 것을 알았다.
+
+### 원본의 스타일 정의를 그대로 쓴다
+
+`.hwpx`는 **zip + XML**이다. 그래서 이렇게 할 수 있다.
+
+- `Contents/header.xml`(글꼴·글자모양·문단모양·테두리)을 **통째로 복사**
+- `Contents/section0.xml`만 새로 쓴다
+
+원본에서 **문단마다 `paraPrIDRef`·`charPrIDRef`를 읽어 용도별로 매핑**하면
+(제목 / □ / ○ / - / ※ / ▸ / 표 셀) 글꼴·크기·들여쓰기가 **정의 그대로** 따라온다.
+
+```python
+b = Builder("원본서식.hwpx")
+b.title_box("보고서 제목")          # 원본의 제목 상자를 복사해 글자만 교체
+b.p("h1", "□ 추진 배경")
+b.p("item", "  - (원인) …")         # 앞 공백이 그대로 살아난다
+b.table([["구분", "내용"], ["…", "…"]], widths=[16, 84])
+b.save("결과.hwpx")
+```
+
+### 걸린 함정 셋
+
+**① 구조가 복잡한 부분은 재현하지 말고 복사한다.** 제목 상자·취지 상자를 직접
+짜려다 두 번 틀렸다. **원본 표를 통째로 가져와 `<hp:t>` 안의 글자만 바꾸는** 쪽이 확실하다.
+
+**② `<hp:t[^>]*>`로 글자 태그를 잡으면 안 된다.** `<hp:tc>`·`<hp:tr>`·`<hp:tbl>`까지
+매치되어 **셀 여는 태그부터 통째로 삼킨다.** 표 구조가 날아가는데
+**한글은 「열지 못했다」고만 말하고 어디가 틀렸는지 알려 주지 않는다.**
+→ `<hp:t(?:\s[^>]*)?>` 로 태그 이름 경계를 확인한다.
+그리고 **저장 전에 `ET.fromstring`으로 검증하고, 깨졌으면 저장하지 않는다.**
+
+**③ 표 테두리는 행 위치마다 정의가 다르다.** 좌·중·우 세 벌만 쓰면 안 된다.
+**머리행 / 머리 바로 아래 / 중간 / 마지막** 네 벌이고, 머리행 아래가 이중 가는 선,
+마지막 행 아래가 굵은 실선이다. 두 벌만 쓰면 **행마다 이중선**이 그려진다.
+
+> **원본을 눈으로 먼저 봤으면 한 번에 끝났다.** `.hwpx` 안의 `Preview/PrvImage.png`를
+> 꺼내면 한글을 띄우지 않고도 1쪽을 볼 수 있다. 그걸 안 열어 보고
+> XML만 읽다가 **세 번 되돌렸다.**
 
 ---
 
