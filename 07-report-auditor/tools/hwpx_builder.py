@@ -67,8 +67,12 @@ BF_HEAD = (23, 24, 25)     # 머리행
 BF_UNDER = (19, 14, 20)    # 머리 바로 아래
 BF_MID = (26, 2, 27)       # 중간
 BF_LAST = (21, 15, 22)     # 마지막 (아랫선 굵게)
-PARA_CELL_C = 38
-PARA_CELL_L = 29
+# 셀 문단모양 — **한 행 안에서 줄간격을 통일해야 한다.**
+# 왼쪽 정렬에 본문용 para 29(줄간격 160)를 쓰면 같은 행의 가운데 셀(130)과 어긋나
+# 글자가 아래로 밀린 것처럼 보인다. 원본은 셀에 130·145 만 쓴다.
+PARA_HEAD = 38      # 머리행 — 가운데, 줄간격 130
+PARA_CELL_C = 40    # 본문 가운데 — 줄간격 145
+PARA_CELL_L = 41    # 본문 왼쪽   — 줄간격 145
 CHAR_CELL = 20
 
 
@@ -181,7 +185,10 @@ class Builder(object):
             tcs = []
             for c, cell in enumerate(row):
                 al = "c" if r == 0 else aligns[c]
-                ppr = PARA_CELL_C if al == "c" else PARA_CELL_L
+                if r == 0:
+                    ppr = PARA_HEAD
+                else:
+                    ppr = PARA_CELL_C if al == "c" else PARA_CELL_L
                 ps = "".join(
                     '<hp:p id="%d" paraPrIDRef="%d" styleIDRef="0" pageBreak="0" '
                     'columnBreak="0" merged="0"><hp:run charPrIDRef="%d">'
