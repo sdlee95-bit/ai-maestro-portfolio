@@ -15,6 +15,7 @@
 | 05 | [공시자료 분석 에이전트](05-disclosure-agent/) | 대학알리미 공시지표를 뽑아 **감사역이 원본에서 다시 뽑아 대조**한 뒤 부서장용 1장 요약으로. 감사↔개고 3회 왕복 · 캔버스로 그려져 화면 긁기가 안 되는 표를 뚫는다 | [에이전트](05-disclosure-agent/agents/) · [명령](05-disclosure-agent/command/) · [수집 도구](05-disclosure-agent/tools/) · [공시항목 사전](05-disclosure-agent/reference/) |
 | 06 | [부서 취합 GAS 웹앱](06-gas-survey-app/) | 부서에 엑셀 서식을 뿌리고 모으던 일을 **주소 하나**로. 입력이 시트에 쌓이고 담당자에게 알림이 가며, **누가 안 냈는지**가 현황판과 메일에 바로 뜬다 | [서버](06-gas-survey-app/gas/Code.gs) · [입력 화면](06-gas-survey-app/gas/Index.html) · [현황판](06-gas-survey-app/gas/Status.html) |
 | 07 | [보고서 숫자 감사역](07-report-auditor/) | 보고서의 숫자를 **원본에서 다시 확인**하고, 그 숫자를 **그렇게 쓸 수 있는지**(모집단·기준일)까지 대조한다. 지난 회차에 실제로 났던 오류 4건으로 회귀 시험 — **3건을 잡았다** | [감사역](07-report-auditor/agents/) · [명령](07-report-auditor/command/) · [대조 도구](07-report-auditor/tools/) · [한글 서식 생성기](07-report-auditor/tools/hwpx_builder.py) · [정의 파일 예시](07-report-auditor/reference/) |
+| 08 | [문서 더미 검색](08-archive-search/) | 쌓인 업무 자료 639건을 색인해 **「작년엔 뭐라고 썼지」**에 답한다. **구형 한글(.hwp)을 한글 프로그램 없이 판독** — 실측 94% · 9개년 이력을 연도별로 | [도구](08-archive-search/tools/) · [.hwp 판독기](08-archive-search/tools/hwp_text.py) |
 
 > 이후 과제는 `05-`, `06-` … 폴더로 추가됩니다.
 
