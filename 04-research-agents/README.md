@@ -83,7 +83,13 @@
 로컬에 Claude Code 가 없어도 저장소에서 바로 돌릴 수 있다
 ([`.github/workflows/research-agents.yml`](../.github/workflows/research-agents.yml)).
 
-1. 저장소 **Settings → Secrets and variables → Actions** 에 `ANTHROPIC_API_KEY` 등록
+1. 인증 정보를 저장소 Secrets 에 등록 — **API 키가 없어도 된다.** Claude 구독(Pro·Max)이 있으면
+   로컬에서 토큰을 발급해 `CLAUDE_CODE_OAUTH_TOKEN` 으로 넣는다
+   ```bash
+   npx @anthropic-ai/claude-code setup-token      # 브라우저 로그인 → 토큰 출력
+   gh secret set CLAUDE_CODE_OAUTH_TOKEN          # 출력된 토큰을 붙여넣는다
+   ```
+   API 키가 있으면 `ANTHROPIC_API_KEY` 로 넣어도 된다. 둘 다 있으면 구독 토큰을 쓴다
 2. **Actions → 「04 조사원·편집장 리서치」 → Run workflow** 에서 주제 입력
 3. 끝나면 `output/run-날짜-번호/` 가 PR 로 올라온다. 아티팩트로도 받을 수 있다
 

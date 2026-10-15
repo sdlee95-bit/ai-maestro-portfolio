@@ -6,7 +6,10 @@
 # 러너에서는 사용자와 대화할 수 없으므로 목차 확정(원 명령의 5단계)은 하지 않고,
 # 결과를 PR 로 올려 「확정이 필요한 쟁점」을 리뷰에서 사람이 정한다.
 #
-# 필요한 것 — 저장소 Secrets 에 ANTHROPIC_API_KEY
+# 필요한 것 — 저장소 Secrets 에 아래 둘 중 하나
+#   CLAUDE_CODE_OAUTH_TOKEN  Claude 구독(Pro·Max)으로 돌린다. API 키가 없어도 된다
+#                            → 로컬에서 `claude setup-token` 으로 발급
+#   ANTHROPIC_API_KEY        API 키가 있으면 이것으로 (사용량 과금)
 
 name: 04 조사원·편집장 리서치
 
@@ -41,12 +44,17 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: API 키 확인
+      - name: 인증 정보 확인
         env:
+          OAUTH: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          if [ -z "$KEY" ]; then
-            echo "::error::저장소 Settings → Secrets and variables → Actions 에 ANTHROPIC_API_KEY 를 등록할 것"
+          if [ -n "$OAUTH" ]; then
+            echo "Claude 구독 토큰(CLAUDE_CODE_OAUTH_TOKEN)으로 실행한다"
+          elif [ -n "$KEY" ]; then
+            echo "API 키(ANTHROPIC_API_KEY)로 실행한다"
+          else
+            echo "::error::Secrets 에 CLAUDE_CODE_OAUTH_TOKEN(구독, 'claude setup-token' 으로 발급) 또는 ANTHROPIC_API_KEY 를 등록할 것"
             exit 1
           fi
 
@@ -82,7 +90,9 @@ jobs:
         id: claude
         uses: anthropics/claude-code-action@v1
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # 구독 토큰이 있으면 그것을 쓰고, 없을 때만 API 키를 쓴다
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic_api_key: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN == '' && secrets.ANTHROPIC_API_KEY || '' }}
           github_token: ${{ github.token }}
           claude_args: |
             --model sonnet
