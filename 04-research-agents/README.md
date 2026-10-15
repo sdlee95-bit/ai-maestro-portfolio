@@ -78,6 +78,27 @@
 
 프로젝트 레벨 `.claude/agents/`, `.claude/commands/` 에 두면 바로 동작한다.
 
+### GitHub Actions 로 돌리기
+
+로컬에 Claude Code 가 없어도 저장소에서 바로 돌릴 수 있다
+([`.github/workflows/research-agents.yml`](../.github/workflows/research-agents.yml)).
+
+1. 저장소 **Settings → Secrets and variables → Actions** 에 `ANTHROPIC_API_KEY` 등록
+2. **Actions → 「04 조사원·편집장 리서치」 → Run workflow** 에서 주제 입력
+3. 끝나면 `output/run-날짜-번호/` 가 PR 로 올라온다. 아티팩트로도 받을 수 있다
+
+러너에서는 원 명령과 세 가지가 다르다.
+
+| | 로컬 `/manpower-research` | GitHub Actions |
+|---|---|---|
+| 조사원 | 5명 | **4명** — 부산대조사원은 내부 자료가 필요해 뺐다 |
+| 목차 확정 | 사용자와 대화하며 확정 | **초안까지.** 「확정이 필요한 쟁점」은 PR 리뷰에서 정한다 |
+| 브라우저 | 기본 사용 | 기본 끔 — `use_browser` 를 켜면 Chromium 을 설치한다 |
+
+`md2hwp.py` 는 한글 COM 이 필요해 러너에서 돌지 않는다. 받은 md 를 로컬에서 변환한다.
+PR 이 자동으로 안 열리면 **Settings → Actions → General → 「Allow GitHub Actions to create
+and approve pull requests」**를 켠다 (끈 채로 두면 실행 요약에 PR 링크만 남긴다).
+
 ---
 
 ## 시행착오
